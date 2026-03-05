@@ -66,7 +66,7 @@ func (s *Server) GetActiveSession(ctx context.Context, _ *focusv1.GetActiveSessi
 	if err != nil {
 		return &focusv1.SessionResponse{}, nil
 	}
-	return &focusv1.SessionResponse{Session: fromModelSession(active)}, nil
+	return &focusv1.SessionResponse{Session: fromModelSession(viewSession(active, time.Now().UTC()))}, nil
 }
 
 func (s *Server) applySessionAction(ctx context.Context, cmd timer.Command) (*focusv1.SessionResponse, error) {
