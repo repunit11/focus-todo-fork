@@ -60,7 +60,7 @@ export default function TodayPage() {
   const [status, setStatus] = useState<'idle' | 'running' | 'paused'>('idle');
   const [clockNow, setClockNow] = useState(new Date());
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
-  const [noiseOn, setNoiseOn] = useState(false);
+  const [noiseEnabled, setNoiseEnabled] = useState(false);
   const noiseRef = useRef<HTMLAudioElement | null>(null);
 
   async function loadTasks() {
@@ -114,6 +114,17 @@ export default function TodayPage() {
       noiseRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const audio = noiseRef.current;
+    if (!audio) return;
+    if (status === 'running' && noiseEnabled) {
+      audio.play().catch(() => {});
+      return;
+    }
+    audio.pause();
+    audio.currentTime = 0;
+  }, [status, noiseEnabled]);
 
   useEffect(() => {
     if (status !== 'running' || !activeTaskId) return;
@@ -191,22 +202,10 @@ export default function TodayPage() {
     if (!audio) return;
     audio.pause();
     audio.currentTime = 0;
-    setNoiseOn(false);
   }
 
-  async function toggleNoise() {
-    const audio = noiseRef.current;
-    if (!audio) return;
-    if (noiseOn) {
-      stopNoise();
-      return;
-    }
-    try {
-      await audio.play();
-      setNoiseOn(true);
-    } catch {
-      setNoiseOn(false);
-    }
+  function toggleNoise() {
+    setNoiseEnabled((v) => !v);
   }
 
   function minimizeModal() {
@@ -339,7 +338,7 @@ export default function TodayPage() {
                 <div>全画面</div>
                 <div>タイマーモード</div>
                 <button type="button" className="button" onClick={toggleNoise}>
-                  ホワイトノイズ {noiseOn ? 'ON' : 'OFF'}
+                  ホワイトノイズ {noiseEnabled ? 'ON' : 'OFF'}
                 </button>
               </div>
             </section>
