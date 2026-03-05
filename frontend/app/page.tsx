@@ -69,19 +69,63 @@ export default function TodayPage() {
   }, []);
 
   async function run(path: string) {
+    const resp = await fetch(path, { method: 'POST' });
+    const json = await resp.json();
+    if (!resp.ok) {
+      setError(json.error ?? 'Timer action failed');
+      await load();
+      return;
+    }
+    setSession(normalizeSession(json.session));
     setError('');
-    try {
-      const resp = await fetch(path, { method: 'POST' });
-      const json = await resp.json();
-      if (!resp.ok) {
-        setError(json.error ?? 'Timer action failed');
-        await load();
+  }
+
+  async function action(kind: 'start' | 'pause' | 'resume' | 'stop' | 'reset') {
+    const status = session?.status ?? 'idle';
+    const hasSession = !!session?.id;
+
+    if (kind === 'start') {
+      if (!hasSession) {
+        await run('/api/timer/start');
         return;
       }
-      setSession(normalizeSession(json.session));
-    } catch {
-      setError('Network error');
+      if (status === 'paused') {
+        await run('/api/timer/resume');
+        return;
+      }
+      setError('既に実行中です');
+      return;
     }
+
+    if (kind === 'pause') {
+      if (status !== 'running') {
+        setError('実行中のセッションがありません');
+        return;
+      }
+      await run('/api/timer/pause');
+      return;
+    }
+
+    if (kind === 'resume') {
+      if (status !== 'paused') {
+        setError('一時停止中のセッションがありません');
+        return;
+      }
+      await run('/api/timer/resume');
+      return;
+    }
+
+    if (kind === 'stop') {
+      if (!hasSession) {
+        setError('停止対象のセッションがありません');
+        return;
+      }
+      await run('/api/timer/stop');
+      return;
+    }
+
+    await run('/api/timer/reset');
+    await load();
   }
 
   const phaseDurationSeconds = useMemo(() => {
@@ -103,17 +147,20 @@ export default function TodayPage() {
         <p>Cycle: {session?.cycleIndex ?? 0}</p>
         {error && <p style={{ color: '#c0392b' }}>{error}</p>}
         <div className="row">
-          <button className="button" onClick={() => run('/api/timer/start')}>
+          <button className="button" onClick={() => action('start')}>
             Start
           </button>
-          <button className="button secondary" onClick={() => run('/api/timer/pause')}>
+          <button className="button secondary" onClick={() => action('pause')}>
             Pause
           </button>
-          <button className="button secondary" onClick={() => run('/api/timer/resume')}>
+          <button className="button secondary" onClick={() => action('resume')}>
             Resume
           </button>
-          <button className="button secondary" onClick={() => run('/api/timer/stop')}>
+          <button className="button secondary" onClick={() => action('stop')}>
             Stop
+          </button>
+          <button className="button secondary" onClick={() => action('reset')}>
+            Reset
           </button>
         </div>
       </div>
