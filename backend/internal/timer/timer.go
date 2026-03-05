@@ -40,8 +40,8 @@ func Apply(current State, cmd Command, now time.Time) (State, time.Duration, err
 	next := current
 	switch cmd {
 	case CommandStart:
-		if current.Status == "running" {
-			return current, 0, errors.New("already running")
+		if err := requireStatus(current, "idle", "paused"); err != nil {
+			return current, 0, err
 		}
 		next.Status = "running"
 		next.StartedAt = now
@@ -53,8 +53,8 @@ func Apply(current State, cmd Command, now time.Time) (State, time.Duration, err
 		}
 		return next, 0, nil
 	case CommandPause:
-		if current.Status != "running" {
-			return current, 0, errors.New("not running")
+		if err := requireStatus(current, "running"); err != nil {
+			return current, 0, err
 		}
 		delta := now.Sub(current.RunningSince)
 		next.Status = "paused"
@@ -62,34 +62,51 @@ func Apply(current State, cmd Command, now time.Time) (State, time.Duration, err
 		next.PauseAccumulation += delta
 		return next, delta, nil
 	case CommandResume:
-		if current.Status != "paused" || current.PausedAt == nil {
-			return current, 0, errors.New("not paused")
+		if err := requireStatus(current, "paused"); err != nil || current.PausedAt == nil {
+			if err == nil {
+				err = errors.New("not paused")
+			}
+			return current, 0, err
 		}
 		next.Status = "running"
 		next.RunningSince = now
 		next.PausedAt = nil
 		return next, 0, nil
 	case CommandStop:
-		if current.Status != "running" {
-			return current, 0, errors.New("not running")
+		if err := requireStatus(current, "running"); err != nil {
+			return current, 0, err
 		}
 		delta := now.Sub(current.RunningSince)
 		next.Status = "idle"
 		next.StartedAt = time.Time{}
 		next.RunningSince = time.Time{}
 		next.PausedAt = nil
+		next.Phase = nextPhase(current)
 		if current.Phase == PhaseFocus {
 			next.CycleIndex++
-			if next.LongBreakInterval > 0 && next.CycleIndex%next.LongBreakInterval == 0 {
-				next.Phase = PhaseLongBreak
-			} else {
-				next.Phase = PhaseShortBreak
-			}
-		} else {
-			next.Phase = PhaseFocus
 		}
 		return next, delta, nil
 	default:
 		return current, 0, errors.New("unknown command")
 	}
+}
+
+func nextPhase(st State) Phase {
+	if st.Phase != PhaseFocus {
+		return PhaseFocus
+	}
+	cycle := st.CycleIndex + 1
+	if st.LongBreakInterval > 0 && cycle%st.LongBreakInterval == 0 {
+		return PhaseLongBreak
+	}
+	return PhaseShortBreak
+}
+
+func requireStatus(st State, allowed ...string) error {
+	for _, s := range allowed {
+		if st.Status == s {
+			return nil
+		}
+	}
+	return errors.New("invalid status")
 }
