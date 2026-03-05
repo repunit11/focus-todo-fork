@@ -363,8 +363,8 @@ a { color: inherit; text-decoration: none; }
 }
 
 .timer-fullscreen {
-  width: min(1180px, calc(100vw - 64px));
-  height: min(700px, calc(100vh - 56px));
+  width: min(1240px, calc(100vw - 32px));
+  height: min(760px, calc(100vh - 24px));
   border-radius: 20px;
   /* Put your image at frontend/public/images/timer-bg.jpg */
   background-image:
