@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, CircleDot, Play, Plus } from 'lucide-react';
+import { ChevronDown, CircleDot, Pause, Play, Plus, Square } from 'lucide-react';
 import { useRef } from 'react';
 
 type Settings = {
@@ -364,10 +364,28 @@ export default function TodayPage() {
       )}
 
       {showMiniDock && (
-        <button type="button" className="timer-dock-mini" onClick={() => setIsTimerModalOpen(true)}>
-          <span>{activeTask?.title}</span>
-          <strong>{formatMMSS(remainingSeconds)}</strong>
-        </button>
+        <div className="timer-dock-mini">
+          <button type="button" className="timer-dock-count" onClick={() => setIsTimerModalOpen(true)} title="タイマーを開く">
+            {Math.max(0, Math.ceil(remainingSeconds / 60))}
+          </button>
+          <button type="button" className="timer-dock-task" onClick={() => setIsTimerModalOpen(true)}>
+            {activeTask?.title}
+          </button>
+          <div className="timer-dock-actions">
+            {status === 'running' ? (
+              <button type="button" className="timer-dock-icon" onClick={pauseTask} title="一時停止">
+                <Pause size={14} />
+              </button>
+            ) : (
+              <button type="button" className="timer-dock-icon" onClick={() => setStatus('running')} title="再開">
+                <Play size={14} />
+              </button>
+            )}
+            <button type="button" className="timer-dock-icon" onClick={deleteActiveTaskTimer} title="停止">
+              <Square size={13} />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
