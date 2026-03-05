@@ -150,12 +150,16 @@ export default function TodayPage() {
 
   function startTask(taskId: string) {
     setActiveTaskId(taskId);
-    setStatus('running');
+    setStatus('idle');
     setIsTimerModalOpen(true);
   }
 
   function pauseTask() {
     if (status === 'running') setStatus('paused');
+  }
+
+  function resumeTask() {
+    if (status === 'paused') setStatus('running');
   }
 
   function deleteActiveTaskTimer() {
@@ -257,15 +261,26 @@ export default function TodayPage() {
               </div>
 
               <div className="timer-main-actions">
-                <button type="button" className="button primary" onClick={() => setStatus('running')}>
-                  集中スタート
-                </button>
-                <button type="button" className="button" onClick={pauseTask}>
-                  一時停止
-                </button>
-                <button type="button" className="button" onClick={deleteActiveTaskTimer}>
-                  削除
-                </button>
+                {status === 'idle' && (
+                  <button type="button" className="button primary" onClick={() => setStatus('running')}>
+                    集中スタート
+                  </button>
+                )}
+                {status === 'running' && (
+                  <button type="button" className="button" onClick={pauseTask}>
+                    一時停止
+                  </button>
+                )}
+                {status === 'paused' && (
+                  <>
+                    <button type="button" className="button primary" onClick={resumeTask}>
+                      続く
+                    </button>
+                    <button type="button" className="button" onClick={deleteActiveTaskTimer}>
+                      停止
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   className="button"
