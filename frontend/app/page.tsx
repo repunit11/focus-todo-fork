@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, CircleDot, Play, Plus } from 'lucide-react';
+import { useRef } from 'react';
 
 type Settings = {
   focusMinutes: number;
@@ -59,6 +60,8 @@ export default function TodayPage() {
   const [status, setStatus] = useState<'idle' | 'running' | 'paused'>('idle');
   const [clockNow, setClockNow] = useState(new Date());
   const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
+  const [noiseOn, setNoiseOn] = useState(false);
+  const noiseRef = useRef<HTMLAudioElement | null>(null);
 
   async function loadTasks() {
     const resp = await fetch('/api/tasks');
@@ -98,6 +101,18 @@ export default function TodayPage() {
   useEffect(() => {
     const id = setInterval(() => setClockNow(new Date()), 1000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const audio = new Audio('/audio/white-noise.mp3');
+    audio.loop = true;
+    audio.volume = 0.35;
+    noiseRef.current = audio;
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+      noiseRef.current = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -168,6 +183,35 @@ export default function TodayPage() {
     setStatus('idle');
     setActiveTaskId(null);
     setIsTimerModalOpen(false);
+    stopNoise();
+  }
+
+  function stopNoise() {
+    const audio = noiseRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = 0;
+    setNoiseOn(false);
+  }
+
+  async function toggleNoise() {
+    const audio = noiseRef.current;
+    if (!audio) return;
+    if (noiseOn) {
+      stopNoise();
+      return;
+    }
+    try {
+      await audio.play();
+      setNoiseOn(true);
+    } catch {
+      setNoiseOn(false);
+    }
+  }
+
+  function minimizeModal() {
+    setIsTimerModalOpen(false);
+    stopNoise();
   }
 
   const activeTask = tasks.find((t) => t.id === activeTaskId) ?? null;
@@ -242,7 +286,7 @@ export default function TodayPage() {
       </section>
 
       {showLargeTimer && (
-        <div className="timer-modal-backdrop" onDoubleClick={() => setIsTimerModalOpen(false)}>
+        <div className="timer-modal-backdrop" onDoubleClick={minimizeModal}>
           <div className="timer-fullscreen" onDoubleClick={(e) => e.stopPropagation()}>
             <section className="timer-left">
               <div className="timer-floating-task">
@@ -250,7 +294,7 @@ export default function TodayPage() {
                 <button
                   type="button"
                   className="timer-close-mini"
-                  onClick={() => setIsTimerModalOpen(false)}
+                  onClick={minimizeModal}
                   title="縮小"
                 >
                   <ChevronDown size={20} />
@@ -294,7 +338,9 @@ export default function TodayPage() {
               <div className="timer-bottom-modes">
                 <div>全画面</div>
                 <div>タイマーモード</div>
-                <div>ホワイトノイズ</div>
+                <button type="button" className="button" onClick={toggleNoise}>
+                  ホワイトノイズ {noiseOn ? 'ON' : 'OFF'}
+                </button>
               </div>
             </section>
 
