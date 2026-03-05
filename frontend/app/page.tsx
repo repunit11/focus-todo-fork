@@ -172,6 +172,8 @@ export default function TodayPage() {
 
   const activeTask = tasks.find((t) => t.id === activeTaskId) ?? null;
   const remainingSeconds = focusSeconds - activeElapsedSeconds;
+  const progressRatio = Math.min(1, Math.max(0, activeElapsedSeconds / focusSeconds));
+  const progressDeg = progressRatio * 360;
   const showLargeTimer = !!activeTask && isTimerModalOpen;
   const showMiniDock = !!activeTask && !isTimerModalOpen;
 
@@ -256,7 +258,13 @@ export default function TodayPage() {
               </div>
 
               <div className="timer-ring-wrap">
-                <div className="timer-ring" />
+                <div className="timer-ring-track" />
+                <div
+                  className="timer-ring-progress"
+                  style={{
+                    background: `conic-gradient(#fd6f66 ${progressDeg}deg, rgba(232,236,248,0.35) ${progressDeg}deg)`
+                  }}
+                />
                 <div className="timer-big-time">{formatMMSS(remainingSeconds)}</div>
               </div>
 
