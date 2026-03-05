@@ -1,12 +1,26 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 type Settings = {
   focusMinutes: number;
   shortBreakMinutes: number;
   longBreakMinutes: number;
   longBreakInterval: number;
+};
+
+type Task = {
+  id: string;
+  title: string;
+  note: string;
+  estimatedPomodoros: number;
+  completed: boolean;
+  tags: string[];
+};
+
+type TimerStore = {
+  elapsedByTask: Record<string, number>;
+  pomodoroCount: number;
 };
 
 const defaultSettings: Settings = {
@@ -27,12 +41,29 @@ function formatMMSS(totalSeconds: number): string {
   return `${m}:${s}`;
 }
 
+function formatClock(now: Date): string {
+  return now.toLocaleTimeString('ja-JP', { hour12: false });
+}
+
+const STORAGE_KEY = 'focus_todo_task_timers_v1';
+
 export default function TodayPage() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
-  const [phase, setPhase] = useState<'focus' | 'short_break' | 'long_break'>('focus');
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+
+  const [elapsedByTask, setElapsedByTask] = useState<Record<string, number>>({});
+  const [pomodoroCount, setPomodoroCount] = useState(0);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'running' | 'paused'>('idle');
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [cycleIndex, setCycleIndex] = useState(0);
+  const [clockNow, setClockNow] = useState(new Date());
+  const [isTimerModalOpen, setIsTimerModalOpen] = useState(false);
+
+  async function loadTasks() {
+    const resp = await fetch('/api/tasks');
+    const json = await resp.json();
+    setTasks((json.tasks ?? []).filter((t: Task) => !t.completed));
+  }
 
   useEffect(() => {
     fetch('/api/settings')
@@ -40,120 +71,243 @@ export default function TodayPage() {
       .then((j) => {
         if (j.settings) setSettings(j.settings);
       })
-      .catch(() => {
-        // keep defaults on network errors
-      });
+      .catch(() => {});
+
+    loadTasks().catch(() => {});
+
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as TimerStore;
+        setElapsedByTask(parsed.elapsedByTask ?? {});
+        setPomodoroCount(parsed.pomodoroCount ?? 0);
+      } catch {
+        // ignore broken local data
+      }
+    }
   }, []);
 
   useEffect(() => {
-    if (status !== 'running') return;
-    const id = setInterval(() => {
-      setElapsedSeconds((s) => s + 1);
-    }, 1000);
-    return () => clearInterval(id);
-  }, [status]);
-
-  const phaseDurationSeconds = useMemo(() => {
-    if (phase === 'short_break') return settings.shortBreakMinutes * 60;
-    if (phase === 'long_break') return settings.longBreakMinutes * 60;
-    return settings.focusMinutes * 60;
-  }, [phase, settings]);
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ elapsedByTask, pomodoroCount } satisfies TimerStore)
+    );
+  }, [elapsedByTask, pomodoroCount]);
 
   useEffect(() => {
-    if (status !== 'running') return;
-    if (elapsedSeconds < phaseDurationSeconds) return;
+    const id = setInterval(() => setClockNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
-    if (phase === 'focus') {
-      fetch('/api/stats/log', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ focusSeconds: phaseDurationSeconds, completedPomodoro: true })
-      }).catch(() => {
-        // keep timer UX responsive even if logging fails
-      });
-    }
+  useEffect(() => {
+    if (status !== 'running' || !activeTaskId) return;
+    const id = setInterval(() => {
+      setElapsedByTask((prev) => ({
+        ...prev,
+        [activeTaskId]: (prev[activeTaskId] ?? 0) + 1
+      }));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [status, activeTaskId]);
 
-    if (phase === 'focus') {
-      const nextCycle = cycleIndex + 1;
-      setCycleIndex(nextCycle);
-      const isLong = nextCycle % settings.longBreakInterval === 0;
-      setPhase(isLong ? 'long_break' : 'short_break');
-    } else {
-      setPhase('focus');
-    }
+  const focusSeconds = settings.focusMinutes * 60;
+  const activeElapsedSeconds = activeTaskId ? elapsedByTask[activeTaskId] ?? 0 : 0;
 
-    setElapsedSeconds(0);
-    setStatus('running');
-  }, [elapsedSeconds, phaseDurationSeconds, phase, cycleIndex, settings.longBreakInterval, status]);
+  useEffect(() => {
+    if (status !== 'running' || !activeTaskId) return;
+    if (activeElapsedSeconds < focusSeconds) return;
 
-  function onStart() {
-    setStatus('running');
+    fetch('/api/stats/log', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ focusSeconds, completedPomodoro: true })
+    }).catch(() => {});
+
+    setPomodoroCount((v) => v + 1);
+    setElapsedByTask((prev) => ({ ...prev, [activeTaskId]: 0 }));
+  }, [activeElapsedSeconds, focusSeconds, status, activeTaskId]);
+
+  const totalFocusMinutes = useMemo(() => {
+    const sum = Object.values(elapsedByTask).reduce((acc, sec) => acc + sec, 0);
+    return Math.floor(sum / 60);
+  }, [elapsedByTask]);
+
+  async function addTask(e: FormEvent) {
+    e.preventDefault();
+    const title = newTaskTitle.trim();
+    if (!title) return;
+
+    await fetch('/api/tasks', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title, note: '', estimatedPomodoros: 1, tags: [] })
+    });
+
+    setNewTaskTitle('');
+    await loadTasks();
   }
 
-  function onPause() {
-    if (status !== 'running') return;
-    setStatus('paused');
+  function startTask(taskId: string) {
+    setActiveTaskId(taskId);
+    setStatus('running');
+    setIsTimerModalOpen(true);
   }
 
-  function onDelete() {
+  function pauseTask() {
+    if (status === 'running') setStatus('paused');
+  }
+
+  function deleteActiveTaskTimer() {
+    if (!activeTaskId) return;
+    setElapsedByTask((prev) => ({ ...prev, [activeTaskId]: 0 }));
     setStatus('idle');
-    setPhase('focus');
-    setElapsedSeconds(0);
-    setCycleIndex(0);
+    setActiveTaskId(null);
+    setIsTimerModalOpen(false);
   }
 
-  const remainingSeconds = phaseDurationSeconds - elapsedSeconds;
-  const showTimer = status !== 'idle';
+  const activeTask = tasks.find((t) => t.id === activeTaskId) ?? null;
+  const remainingSeconds = focusSeconds - activeElapsedSeconds;
+  const showLargeTimer = !!activeTask && isTimerModalOpen;
+  const showMiniDock = !!activeTask && !isTimerModalOpen;
 
   return (
     <div>
-      <div className="card">
-        <h2>Today</h2>
-        <p>Phase: {phase}</p>
-        <p>Status: {status}</p>
-        <p>Cycle: {cycleIndex}</p>
-        <div className="row">
-          <button className="button" onClick={onStart}>
-            Start
-          </button>
-          <button className="button secondary" onClick={onPause}>
-            Pause
-          </button>
-          <button className="button secondary" onClick={onDelete}>
-            Delete
-          </button>
+      <h1 className="today-title">今日</h1>
+
+      <section className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-value">{settings.focusMinutes}</div>
+          <div className="stat-label">予定時間</div>
         </div>
-      </div>
+        <div className="stat-card">
+          <div className="stat-value">{tasks.length}</div>
+          <div className="stat-label">未完了のタスク</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{totalFocusMinutes}</div>
+          <div className="stat-label">実行済みの時間</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value">{pomodoroCount}</div>
+          <div className="stat-label">完了済のポモドーロ</div>
+        </div>
+      </section>
 
-      {showTimer && (
-        <>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <p style={{ marginBottom: 8 }}>Timer</p>
-            <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: 2 }}>{formatMMSS(remainingSeconds)}</div>
-            <p style={{ opacity: 0.8 }}>Elapsed: {formatMMSS(elapsedSeconds)}</p>
-          </div>
+      <form className="quick-add" onSubmit={addTask}>
+        ＋{' '}
+        <input
+          value={newTaskTitle}
+          onChange={(e) => setNewTaskTitle(e.target.value)}
+          placeholder="タスク名を入力して Enter"
+          style={{ border: 'none', outline: 'none', background: 'transparent', width: '80%', color: '#7f7f93' }}
+        />
+      </form>
 
-          <div
-            style={{
-              position: 'fixed',
-              bottom: 16,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: '#1f1a16',
-              color: '#fff',
-              borderRadius: 14,
-              padding: '12px 18px',
-              minWidth: 280,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
-            }}
-          >
-            <span>{phase}</span>
-            <strong>{formatMMSS(remainingSeconds)}</strong>
+      <section className="task-board">
+        <strong>タスク・{totalFocusMinutes}分</strong>
+        {tasks.length === 0 && (
+          <div className="task-row">
+            <div>タスクはまだありません</div>
           </div>
-        </>
+        )}
+        {tasks.map((task) => {
+          const elapsed = elapsedByTask[task.id] ?? 0;
+          return (
+            <div className="task-row" key={task.id}>
+              <div className="task-row-main">
+                <button
+                  type="button"
+                  className="task-start"
+                  onClick={() => startTask(task.id)}
+                  title="このタスクを開始"
+                >
+                  ▶
+                </button>
+                <div>
+                  <div>{task.title}</div>
+                  <div className="task-meta">● {formatMMSS(elapsed)}</div>
+                </div>
+              </div>
+              <div>{task.note || '-'}</div>
+            </div>
+          );
+        })}
+      </section>
+
+      {showLargeTimer && (
+        <div className="timer-modal-backdrop" onDoubleClick={() => setIsTimerModalOpen(false)}>
+          <div className="timer-fullscreen" onDoubleClick={(e) => e.stopPropagation()}>
+            <section className="timer-left">
+              <div className="timer-floating-task">
+                <div className="timer-floating-title">{activeTask?.title}</div>
+                <button
+                  type="button"
+                  className="timer-close-mini"
+                  onClick={() => setIsTimerModalOpen(false)}
+                  title="縮小"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="timer-ring-wrap">
+                <div className="timer-ring" />
+                <div className="timer-big-time">{formatMMSS(remainingSeconds)}</div>
+              </div>
+
+              <div className="timer-main-actions">
+                <button type="button" className="button primary" onClick={() => setStatus('running')}>
+                  集中スタート
+                </button>
+                <button type="button" className="button" onClick={pauseTask}>
+                  一時停止
+                </button>
+                <button type="button" className="button" onClick={deleteActiveTaskTimer}>
+                  削除
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  onClick={() => setIsTimerModalOpen(false)}
+                  title="縮小"
+                >
+                  縮小
+                </button>
+              </div>
+
+              <div className="timer-bottom-modes">
+                <div>全画面</div>
+                <div>タイマーモード</div>
+                <div>ホワイトノイズ</div>
+              </div>
+            </section>
+
+            <aside className="timer-right">
+              <div className="timer-info-card">
+                <h4>本日のポモドーロ時間</h4>
+                <div className="timer-info-value">{pomodoroCount * settings.focusMinutes}</div>
+              </div>
+
+              <div className="timer-info-card">
+                <h4>今日</h4>
+                <div className="timer-mini-task">{activeTask?.title}</div>
+              </div>
+
+              <div className="timer-info-card">
+                <h4>今日の集中時間</h4>
+                <div className="timer-time-line" />
+                <div className="timer-time-label">{formatClock(clockNow)}</div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      )}
+
+      {showMiniDock && (
+        <button type="button" className="timer-dock-mini" onClick={() => setIsTimerModalOpen(true)}>
+          <span>{activeTask?.title}</span>
+          <strong>{formatMMSS(remainingSeconds)}</strong>
+        </button>
       )}
     </div>
   );
