@@ -1,0 +1,117 @@
+syntax = "proto3";
+
+package focus_todo.v1;
+
+option go_package = "gen/focus_todo/v1;focusv1";
+
+service TimerService {
+  rpc StartSession(StartSessionRequest) returns (SessionResponse);
+  rpc PauseSession(SessionActionRequest) returns (SessionResponse);
+  rpc ResumeSession(SessionActionRequest) returns (SessionResponse);
+  rpc StopSession(SessionActionRequest) returns (SessionResponse);
+  rpc GetActiveSession(GetActiveSessionRequest) returns (SessionResponse);
+}
+
+service TaskService {
+  rpc CreateTask(CreateTaskRequest) returns (TaskResponse);
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse);
+  rpc UpdateTask(UpdateTaskRequest) returns (TaskResponse);
+  rpc CompleteTask(CompleteTaskRequest) returns (TaskResponse);
+  rpc DeleteTask(DeleteTaskRequest) returns (DeleteTaskResponse);
+}
+
+service StatsService {
+  rpc GetDailyStats(GetStatsRequest) returns (StatsResponse);
+  rpc GetWeeklyStats(GetStatsRequest) returns (StatsResponse);
+  rpc GetMonthlyStats(GetStatsRequest) returns (StatsResponse);
+}
+
+service SettingsService {
+  rpc GetPomodoroSettings(GetPomodoroSettingsRequest) returns (PomodoroSettingsResponse);
+  rpc UpdatePomodoroSettings(UpdatePomodoroSettingsRequest) returns (PomodoroSettingsResponse);
+}
+
+message Session {
+  string id = 1;
+  string phase = 2;
+  string status = 3;
+  int64 started_at_unix = 4;
+  int64 running_since_unix = 5;
+  int64 elapsed_seconds = 6;
+  int32 cycle_index = 7;
+}
+
+message StartSessionRequest { string task_id = 1; }
+message SessionActionRequest { string session_id = 1; }
+message GetActiveSessionRequest {}
+message SessionResponse { Session session = 1; }
+
+message Task {
+  string id = 1;
+  string title = 2;
+  string note = 3;
+  int32 estimated_pomodoros = 4;
+  bool completed = 5;
+  repeated string tags = 6;
+  int64 created_at_unix = 7;
+  int64 updated_at_unix = 8;
+}
+
+message CreateTaskRequest {
+  string title = 1;
+  string note = 2;
+  int32 estimated_pomodoros = 3;
+  repeated string tags = 4;
+}
+
+message ListTasksRequest { bool include_completed = 1; }
+message ListTasksResponse { repeated Task tasks = 1; }
+
+message UpdateTaskRequest {
+  string id = 1;
+  string title = 2;
+  string note = 3;
+  int32 estimated_pomodoros = 4;
+  repeated string tags = 5;
+}
+
+message CompleteTaskRequest { string id = 1; }
+message DeleteTaskRequest { string id = 1; }
+message TaskResponse { Task task = 1; }
+message DeleteTaskResponse { bool deleted = 1; }
+
+message GetStatsRequest {}
+
+message StatsPoint {
+  string label = 1;
+  int64 focus_seconds = 2;
+  int32 completed_pomodoros = 3;
+  int32 completed_tasks = 4;
+}
+
+message StatsResponse {
+  int64 total_focus_seconds = 1;
+  int32 total_completed_pomodoros = 2;
+  int32 total_completed_tasks = 3;
+  repeated StatsPoint points = 4;
+}
+
+message PomodoroSettings {
+  int32 focus_minutes = 1;
+  int32 short_break_minutes = 2;
+  int32 long_break_minutes = 3;
+  int32 long_break_interval = 4;
+}
+
+message GetPomodoroSettingsRequest {}
+
+message UpdatePomodoroSettingsRequest {
+  int32 focus_minutes = 1;
+  int32 short_break_minutes = 2;
+  int32 long_break_minutes = 3;
+  int32 long_break_interval = 4;
+}
+
+message PomodoroSettingsResponse {
+  PomodoroSettings settings = 1;
+}
