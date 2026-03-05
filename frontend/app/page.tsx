@@ -35,15 +35,28 @@ function formatMMSS(totalSeconds: number): string {
   return `${m}:${s}`;
 }
 
+function normalizeSession(raw: any): Session | null {
+  if (!raw || typeof raw !== 'object') return null;
+  if (!raw.id) return null;
+  return {
+    id: String(raw.id),
+    phase: String(raw.phase || 'focus'),
+    status: String(raw.status || 'idle'),
+    elapsedSeconds: Number(raw.elapsedSeconds || 0),
+    cycleIndex: Number(raw.cycleIndex || 0)
+  };
+}
+
 export default function TodayPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [error, setError] = useState<string>('');
 
   async function load() {
     const [activeResp, settingsResp] = await Promise.all([fetch('/api/timer/active'), fetch('/api/settings')]);
     const activeJson = await activeResp.json();
     const settingsJson = await settingsResp.json();
-    setSession(activeJson.session ?? null);
+    setSession(normalizeSession(activeJson.session));
     if (settingsJson.settings) {
       setSettings(settingsJson.settings);
     }
@@ -56,13 +69,19 @@ export default function TodayPage() {
   }, []);
 
   async function run(path: string) {
-    const resp = await fetch(path, { method: 'POST' });
-    if (!resp.ok) {
-      await load();
-      return;
+    setError('');
+    try {
+      const resp = await fetch(path, { method: 'POST' });
+      const json = await resp.json();
+      if (!resp.ok) {
+        setError(json.error ?? 'Timer action failed');
+        await load();
+        return;
+      }
+      setSession(normalizeSession(json.session));
+    } catch {
+      setError('Network error');
     }
-    const json = await resp.json();
-    setSession(json.session ?? null);
   }
 
   const phaseDurationSeconds = useMemo(() => {
@@ -82,6 +101,7 @@ export default function TodayPage() {
         <p>Phase: {session?.phase ?? 'focus'}</p>
         <p>Status: {session?.status ?? 'idle'}</p>
         <p>Cycle: {session?.cycleIndex ?? 0}</p>
+        {error && <p style={{ color: '#c0392b' }}>{error}</p>}
         <div className="row">
           <button className="button" onClick={() => run('/api/timer/start')}>
             Start
