@@ -70,3 +70,32 @@ func TestApply_AdvancePhase_ToLongBreakOnFourthCycle(t *testing.T) {
 		t.Fatalf("expected long_break, got %s", s1.Phase)
 	}
 }
+
+func TestApply_StopFromPaused_ShouldSucceedAndReturnZeroDelta(t *testing.T) {
+	t0 := time.Date(2026, 3, 5, 9, 0, 0, 0, time.UTC)
+	pausedAt := t0.Add(10 * time.Minute)
+	st := State{
+		Phase:             PhaseFocus,
+		Status:            "paused",
+		StartedAt:         t0,
+		RunningSince:      t0,
+		PausedAt:          &pausedAt,
+		PauseAccumulation: 10 * time.Minute,
+		CycleIndex:        0,
+		FocusDuration:     25 * time.Minute,
+		ShortBreak:        5 * time.Minute,
+		LongBreak:         15 * time.Minute,
+		LongBreakInterval: 4,
+	}
+
+	next, delta, err := Apply(st, CommandStop, pausedAt.Add(5*time.Minute))
+	if err != nil {
+		t.Fatalf("stop from paused should not fail: %v", err)
+	}
+	if delta != 0 {
+		t.Fatalf("expected zero delta, got %s", delta)
+	}
+	if next.Status != "idle" {
+		t.Fatalf("expected idle, got %s", next.Status)
+	}
+}
