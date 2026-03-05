@@ -73,10 +73,13 @@ func Apply(current State, cmd Command, now time.Time) (State, time.Duration, err
 		next.PausedAt = nil
 		return next, 0, nil
 	case CommandStop:
-		if err := requireStatus(current, "running"); err != nil {
+		if err := requireStatus(current, "running", "paused"); err != nil {
 			return current, 0, err
 		}
-		delta := now.Sub(current.RunningSince)
+		delta := time.Duration(0)
+		if current.Status == "running" {
+			delta = now.Sub(current.RunningSince)
+		}
 		next.Status = "idle"
 		next.StartedAt = time.Time{}
 		next.RunningSince = time.Time{}
