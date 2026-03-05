@@ -123,7 +123,6 @@ export default function TodayPage() {
       return;
     }
     audio.pause();
-    audio.currentTime = 0;
   }, [status, noiseEnabled]);
 
   useEffect(() => {
@@ -194,14 +193,14 @@ export default function TodayPage() {
     setStatus('idle');
     setActiveTaskId(null);
     setIsTimerModalOpen(false);
-    stopNoise();
+    stopNoise(true);
   }
 
-  function stopNoise() {
+  function stopNoise(reset = false) {
     const audio = noiseRef.current;
     if (!audio) return;
     audio.pause();
-    audio.currentTime = 0;
+    if (reset) audio.currentTime = 0;
   }
 
   function toggleNoise() {
@@ -210,7 +209,7 @@ export default function TodayPage() {
 
   function minimizeModal() {
     setIsTimerModalOpen(false);
-    stopNoise();
+    stopNoise(false);
   }
 
   const activeTask = tasks.find((t) => t.id === activeTaskId) ?? null;
