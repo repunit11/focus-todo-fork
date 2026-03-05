@@ -6,11 +6,12 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
 	focusv1 "github.com/kenta/focus-todo-fork/backend/gen/focus_todo/v1"
 	"github.com/kenta/focus-todo-fork/backend/internal/api"
 	"github.com/kenta/focus-todo-fork/backend/internal/config"
 	"github.com/kenta/focus-todo-fork/backend/internal/store/postgres"
-	"github.com/gin-gonic/gin"
+	"github.com/kenta/focus-todo-fork/backend/internal/usecase"
 	"google.golang.org/grpc"
 )
 
@@ -24,7 +25,8 @@ func main() {
 	}
 	defer store.Close()
 
-	svc := api.New(store)
+	app := usecase.New(store)
+	svc := api.New(app)
 	grpcServer := grpc.NewServer()
 	focusv1.RegisterTimerServiceServer(grpcServer, svc)
 	focusv1.RegisterTaskServiceServer(grpcServer, svc)
