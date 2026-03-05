@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { ChevronDown, Play, Pause, Square } from 'lucide-react';
 
 type Settings = {
   focusMinutes: number;
@@ -81,17 +82,12 @@ export default function TodayPage() {
         const parsed = JSON.parse(raw) as TimerStore;
         setElapsedByTask(parsed.elapsedByTask ?? {});
         setPomodoroCount(parsed.pomodoroCount ?? 0);
-      } catch {
-        // ignore broken local data
-      }
+      } catch {}
     }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ elapsedByTask, pomodoroCount } satisfies TimerStore)
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ elapsedByTask, pomodoroCount } satisfies TimerStore));
   }, [elapsedByTask, pomodoroCount]);
 
   useEffect(() => {
@@ -147,17 +143,26 @@ export default function TodayPage() {
     await loadTasks();
   }
 
-  function startTask(taskId: string) {
+  function openTaskTimer(taskId: string) {
     setActiveTaskId(taskId);
-    setStatus('running');
+    setStatus('idle');
     setIsTimerModalOpen(true);
   }
 
-  function pauseTask() {
+  function startFocus() {
+    if (!activeTaskId) return;
+    setStatus('running');
+  }
+
+  function pauseFocus() {
     if (status === 'running') setStatus('paused');
   }
 
-  function deleteActiveTaskTimer() {
+  function resumeFocus() {
+    if (status === 'paused') setStatus('running');
+  }
+
+  function stopFocus() {
     if (!activeTaskId) return;
     setElapsedByTask((prev) => ({ ...prev, [activeTaskId]: 0 }));
     setStatus('idle');
@@ -172,131 +177,140 @@ export default function TodayPage() {
 
   return (
     <div>
-      <h1 className="today-title">今日</h1>
+      <h1 className="mb-4 text-4xl font-medium text-slate-500">今日</h1>
 
-      <section className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-value">{settings.focusMinutes}</div>
-          <div className="stat-label">予定時間</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{tasks.length}</div>
-          <div className="stat-label">未完了のタスク</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{totalFocusMinutes}</div>
-          <div className="stat-label">実行済みの時間</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value">{pomodoroCount}</div>
-          <div className="stat-label">完了済のポモドーロ</div>
-        </div>
+      <section className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[
+          { v: settings.focusMinutes, l: '予定時間' },
+          { v: tasks.length, l: '未完了のタスク' },
+          { v: totalFocusMinutes, l: '実行済みの時間' },
+          { v: pomodoroCount, l: '完了済のポモドーロ' }
+        ].map((item) => (
+          <div key={item.l} className="rounded-xl border border-slate-200 bg-white p-4 text-center">
+            <div className="text-4xl font-semibold leading-none text-rose-500">{item.v}</div>
+            <div className="mt-1 text-sm text-slate-400">{item.l}</div>
+          </div>
+        ))}
       </section>
 
-      <form className="quick-add" onSubmit={addTask}>
+      <form onSubmit={addTask} className="mb-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-400">
         ＋{' '}
         <input
           value={newTaskTitle}
           onChange={(e) => setNewTaskTitle(e.target.value)}
           placeholder="タスク名を入力して Enter"
-          style={{ border: 'none', outline: 'none', background: 'transparent', width: '80%', color: '#7f7f93' }}
+          className="w-[80%] border-none bg-transparent text-slate-500 outline-none"
         />
       </form>
 
-      <section className="task-board">
-        <strong>タスク・{totalFocusMinutes}分</strong>
-        {tasks.length === 0 && (
-          <div className="task-row">
-            <div>タスクはまだありません</div>
-          </div>
-        )}
-        {tasks.map((task) => {
-          const elapsed = elapsedByTask[task.id] ?? 0;
-          return (
-            <div className="task-row" key={task.id}>
-              <div className="task-row-main">
-                <button
-                  type="button"
-                  className="task-start"
-                  onClick={() => startTask(task.id)}
-                  title="このタスクを開始"
-                >
-                  ▶
-                </button>
-                <div>
-                  <div>{task.title}</div>
-                  <div className="task-meta">● {formatMMSS(elapsed)}</div>
+      <section className="rounded-xl border border-slate-200 bg-white p-4">
+        <strong className="text-slate-600">タスク・{totalFocusMinutes}分</strong>
+        {tasks.length === 0 && <div className="mt-3 rounded-lg border border-slate-100 p-3">タスクはまだありません</div>}
+        <div className="space-y-3">
+          {tasks.map((task) => {
+            const elapsed = elapsedByTask[task.id] ?? 0;
+            return (
+              <div key={task.id} className="mt-3 flex items-center justify-between rounded-lg border border-slate-100 p-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => openTaskTimer(task.id)}
+                    className="grid h-8 w-8 place-items-center rounded-full border border-slate-200 bg-white text-slate-500 hover:bg-slate-50"
+                    title="このタスクを開始"
+                  >
+                    <Play size={14} />
+                  </button>
+                  <div>
+                    <div>{task.title}</div>
+                    <div className="text-xs text-rose-500">● {formatMMSS(elapsed)}</div>
+                  </div>
                 </div>
+                <div className="text-sm text-slate-400">{task.note || '-'}</div>
               </div>
-              <div>{task.note || '-'}</div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </section>
 
       {showLargeTimer && (
-        <div className="timer-modal-backdrop" onDoubleClick={() => setIsTimerModalOpen(false)}>
-          <div className="timer-fullscreen" onDoubleClick={(e) => e.stopPropagation()}>
-            <section className="timer-left">
-              <div className="timer-floating-task">
-                <div className="timer-floating-title">{activeTask?.title}</div>
-                <button
-                  type="button"
-                  className="timer-close-mini"
-                  onClick={() => setIsTimerModalOpen(false)}
-                  title="縮小"
-                >
-                  ×
-                </button>
+        <div className="fixed inset-0 z-40 grid place-items-center bg-[rgba(9,11,18,0.72)] backdrop-blur-sm" onDoubleClick={() => setIsTimerModalOpen(false)}>
+          <div
+            className="relative grid h-[min(760px,calc(100vh-24px))] w-[min(1240px,calc(100vw-32px))] grid-cols-1 gap-5 overflow-auto rounded-2xl p-6 text-white lg:grid-cols-[1fr_330px]"
+            style={{
+              background:
+                'radial-gradient(circle at 30% 55%, rgba(0, 152, 131, 0.35), transparent 45%), radial-gradient(circle at 65% 30%, rgba(42, 87, 201, 0.22), transparent 45%), linear-gradient(120deg, #0f1423, #111827 55%, #0e1a2a)'
+            }}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="absolute left-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-white/10 text-xl hover:bg-white/20"
+              onClick={() => setIsTimerModalOpen(false)}
+              title="縮小"
+            >
+              <ChevronDown size={18} />
+            </button>
+
+            <section className="flex flex-col items-center justify-between">
+              <div className="mt-2 flex w-full max-w-[520px] items-center justify-between rounded-xl bg-white/90 px-4 py-3 text-slate-600">
+                <div className="text-2xl font-semibold">{activeTask?.title}</div>
               </div>
 
-              <div className="timer-ring-wrap">
-                <div className="timer-ring" />
-                <div className="timer-big-time">{formatMMSS(remainingSeconds)}</div>
+              <div className="relative grid h-[280px] w-[280px] place-items-center lg:h-[440px] lg:w-[440px]">
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: 'repeating-conic-gradient(rgba(232,236,248,0.72) 0deg 2deg, transparent 2deg 5deg)',
+                    WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 18px), #000 calc(100% - 18px))',
+                    mask: 'radial-gradient(farthest-side, transparent calc(100% - 18px), #000 calc(100% - 18px))'
+                  }}
+                />
+                <div className="text-6xl font-medium tracking-wide lg:text-8xl">{formatMMSS(remainingSeconds)}</div>
               </div>
 
-              <div className="timer-main-actions">
-                <button type="button" className="button primary" onClick={() => setStatus('running')}>
-                  集中スタート
-                </button>
-                <button type="button" className="button" onClick={pauseTask}>
-                  一時停止
-                </button>
-                <button type="button" className="button" onClick={deleteActiveTaskTimer}>
-                  削除
-                </button>
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => setIsTimerModalOpen(false)}
-                  title="縮小"
-                >
-                  縮小
-                </button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {status === 'idle' && (
+                  <button type="button" className="rounded-full bg-white px-5 py-2 font-semibold text-slate-900" onClick={startFocus}>
+                    集中スタート
+                  </button>
+                )}
+                {status === 'running' && (
+                  <button type="button" className="rounded-full border border-white/30 bg-white/10 px-4 py-2" onClick={pauseFocus}>
+                    一時停止
+                  </button>
+                )}
+                {status === 'paused' && (
+                  <>
+                    <button type="button" className="rounded-full bg-white px-5 py-2 font-semibold text-slate-900" onClick={resumeFocus}>
+                      続く
+                    </button>
+                    <button type="button" className="rounded-full border border-white/30 bg-white/10 px-4 py-2" onClick={stopFocus}>
+                      停止
+                    </button>
+                  </>
+                )}
               </div>
 
-              <div className="timer-bottom-modes">
+              <div className="mb-2 flex gap-8 text-sm text-white/70">
                 <div>全画面</div>
                 <div>タイマーモード</div>
                 <div>ホワイトノイズ</div>
               </div>
             </section>
 
-            <aside className="timer-right">
-              <div className="timer-info-card">
-                <h4>本日のポモドーロ時間</h4>
-                <div className="timer-info-value">{pomodoroCount * settings.focusMinutes}</div>
+            <aside className="flex flex-col gap-3">
+              <div className="rounded-2xl border border-white/10 bg-[#1c202fd9] p-4">
+                <h4 className="mb-3 text-sm text-white/90">本日のポモドーロ時間</h4>
+                <div className="text-5xl font-semibold text-rose-500">{pomodoroCount * settings.focusMinutes}</div>
               </div>
-
-              <div className="timer-info-card">
-                <h4>今日</h4>
-                <div className="timer-mini-task">{activeTask?.title}</div>
+              <div className="rounded-2xl border border-white/10 bg-[#1c202fd9] p-4">
+                <h4 className="mb-3 text-sm text-white/90">今日</h4>
+                <div className="rounded-lg bg-white/5 p-3">{activeTask?.title}</div>
               </div>
-
-              <div className="timer-info-card">
-                <h4>今日の集中時間</h4>
-                <div className="timer-time-line" />
-                <div className="timer-time-label">{formatClock(clockNow)}</div>
+              <div className="rounded-2xl border border-white/10 bg-[#1c202fd9] p-4">
+                <h4 className="mb-3 text-sm text-white/90">今日の集中時間</h4>
+                <div className="mb-4 h-2 rounded-full bg-white/20" />
+                <div className="text-white/70">{formatClock(clockNow)}</div>
               </div>
             </aside>
           </div>
@@ -304,7 +318,11 @@ export default function TodayPage() {
       )}
 
       {showMiniDock && (
-        <button type="button" className="timer-dock-mini" onClick={() => setIsTimerModalOpen(true)}>
+        <button
+          type="button"
+          className="fixed bottom-4 left-1/2 z-30 flex min-w-[290px] -translate-x-1/2 items-center justify-between rounded-xl bg-[#151824] px-4 py-3 text-white shadow-2xl"
+          onClick={() => setIsTimerModalOpen(true)}
+        >
           <span>{activeTask?.title}</span>
           <strong>{formatMMSS(remainingSeconds)}</strong>
         </button>
