@@ -1,5 +1,6 @@
 import './globals.css';
 import Link from 'next/link';
+import { Crown, Gauge, Settings, Sprout, Users } from 'lucide-react';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -19,11 +20,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           <section className="workspace">
             <header className="topbar">
-              <span>🏆</span>
-              <span>👥</span>
-              <span>🌱</span>
-              <span>📈</span>
-              <span>⚙️</span>
+              <Crown size={18} />
+              <Users size={18} />
+              <Sprout size={18} />
+              <Gauge size={18} />
+              <Settings size={18} />
             </header>
             <main className="page">{children}</main>
           </section>

@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { CircleDot, Play, Plus, X } from 'lucide-react';
 
 type Settings = {
   focusMinutes: number;
@@ -194,7 +195,7 @@ export default function TodayPage() {
       </section>
 
       <form className="quick-add" onSubmit={addTask}>
-        ＋{' '}
+        <Plus size={14} style={{ verticalAlign: 'middle' }} />{' '}
         <input
           value={newTaskTitle}
           onChange={(e) => setNewTaskTitle(e.target.value)}
@@ -221,11 +222,11 @@ export default function TodayPage() {
                   onClick={() => startTask(task.id)}
                   title="このタスクを開始"
                 >
-                  ▶
+                  <Play size={14} />
                 </button>
                 <div>
                   <div>{task.title}</div>
-                  <div className="task-meta">● {formatMMSS(elapsed)}</div>
+                  <div className="task-meta"><CircleDot size={12} style={{ verticalAlign: 'middle' }} /> {formatMMSS(elapsed)}</div>
                 </div>
               </div>
               <div>{task.note || '-'}</div>
@@ -246,7 +247,7 @@ export default function TodayPage() {
                   onClick={() => setIsTimerModalOpen(false)}
                   title="縮小"
                 >
-                  ×
+                  <X size={18} />
                 </button>
               </div>
 
