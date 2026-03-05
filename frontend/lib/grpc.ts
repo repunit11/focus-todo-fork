@@ -36,6 +36,7 @@ export const grpcApi = {
   pauseSession: () => unary(timerClient, 'pauseSession', {}),
   resumeSession: () => unary(timerClient, 'resumeSession', {}),
   stopSession: () => unary(timerClient, 'stopSession', {}),
+  resetSession: () => unary(timerClient, 'resetSession', {}),
   getActiveSession: () => unary(timerClient, 'getActiveSession', {}),
   createTask: (req: any) => unary(taskClient, 'createTask', req),
   listTasks: (includeCompleted: boolean) => unary(taskClient, 'listTasks', { includeCompleted }),
@@ -45,6 +46,8 @@ export const grpcApi = {
   dailyStats: () => unary(statsClient, 'getDailyStats', {}),
   weeklyStats: () => unary(statsClient, 'getWeeklyStats', {}),
   monthlyStats: () => unary(statsClient, 'getMonthlyStats', {}),
+  logFocusSession: (focusSeconds: number, completedPomodoro: boolean) =>
+    unary(statsClient, 'logFocusSession', { focusSeconds, completedPomodoro }),
   getSettings: () => unary(settingsClient, 'getPomodoroSettings', {}),
   updateSettings: (settings: any) => unary(settingsClient, 'updatePomodoroSettings', settings)
 };

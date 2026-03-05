@@ -67,6 +67,24 @@ func (s *Store) UpsertSession(ctx context.Context, in model.TimerSession) (model
 	return in, err
 }
 
+func (s *Store) ResetActiveSession(ctx context.Context) error {
+	_, err := s.pool.Exec(ctx, `UPDATE timer_sessions
+SET status='idle',
+    phase='focus',
+    started_at=NULL,
+    running_since=NULL,
+    pause_accumulation_seconds=0,
+    elapsed_seconds=0,
+    updated_at=NOW()
+WHERE id IN (
+  SELECT id FROM timer_sessions
+  WHERE status IN ('running','paused')
+  ORDER BY updated_at DESC
+  LIMIT 1
+)`)
+	return err
+}
+
 func (s *Store) CreateTask(ctx context.Context, in model.Task) (model.Task, error) {
 	in.ID = uuid.NewString()
 	now := time.Now().UTC()

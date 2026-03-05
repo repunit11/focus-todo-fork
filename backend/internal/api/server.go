@@ -61,6 +61,17 @@ func (s *Server) StopSession(ctx context.Context, _ *focusv1.SessionActionReques
 	return s.applySessionAction(ctx, timer.CommandStop)
 }
 
+func (s *Server) ResetSession(ctx context.Context, _ *focusv1.SessionActionRequest) (*focusv1.SessionResponse, error) {
+	_, err := s.store.ActiveSession(ctx)
+	if err != nil {
+		return &focusv1.SessionResponse{}, nil
+	}
+	if err := s.store.ResetActiveSession(ctx); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &focusv1.SessionResponse{}, nil
+}
+
 func (s *Server) GetActiveSession(ctx context.Context, _ *focusv1.GetActiveSessionRequest) (*focusv1.SessionResponse, error) {
 	active, err := s.store.ActiveSession(ctx)
 	if err != nil {
@@ -156,6 +167,20 @@ func (s *Server) GetWeeklyStats(ctx context.Context, _ *focusv1.GetStatsRequest)
 
 func (s *Server) GetMonthlyStats(ctx context.Context, _ *focusv1.GetStatsRequest) (*focusv1.StatsResponse, error) {
 	return s.statsByRange(ctx, 29)
+}
+
+func (s *Server) LogFocusSession(ctx context.Context, req *focusv1.LogFocusSessionRequest) (*focusv1.LogFocusSessionResponse, error) {
+	if req.GetFocusSeconds() <= 0 {
+		return nil, status.Error(codes.InvalidArgument, "focus_seconds must be positive")
+	}
+	completed := int32(0)
+	if req.GetCompletedPomodoro() {
+		completed = 1
+	}
+	if err := s.store.AddFocusDelta(ctx, time.Now().UTC(), req.GetFocusSeconds(), completed); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &focusv1.LogFocusSessionResponse{Ok: true}, nil
 }
 
 func (s *Server) statsByRange(ctx context.Context, daysBack int) (*focusv1.StatsResponse, error) {

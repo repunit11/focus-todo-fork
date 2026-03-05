@@ -23,6 +23,7 @@ const (
 	TimerService_PauseSession_FullMethodName     = "/focus_todo.v1.TimerService/PauseSession"
 	TimerService_ResumeSession_FullMethodName    = "/focus_todo.v1.TimerService/ResumeSession"
 	TimerService_StopSession_FullMethodName      = "/focus_todo.v1.TimerService/StopSession"
+	TimerService_ResetSession_FullMethodName     = "/focus_todo.v1.TimerService/ResetSession"
 	TimerService_GetActiveSession_FullMethodName = "/focus_todo.v1.TimerService/GetActiveSession"
 )
 
@@ -34,6 +35,7 @@ type TimerServiceClient interface {
 	PauseSession(ctx context.Context, in *SessionActionRequest, opts ...grpc.CallOption) (*SessionResponse, error)
 	ResumeSession(ctx context.Context, in *SessionActionRequest, opts ...grpc.CallOption) (*SessionResponse, error)
 	StopSession(ctx context.Context, in *SessionActionRequest, opts ...grpc.CallOption) (*SessionResponse, error)
+	ResetSession(ctx context.Context, in *SessionActionRequest, opts ...grpc.CallOption) (*SessionResponse, error)
 	GetActiveSession(ctx context.Context, in *GetActiveSessionRequest, opts ...grpc.CallOption) (*SessionResponse, error)
 }
 
@@ -85,6 +87,16 @@ func (c *timerServiceClient) StopSession(ctx context.Context, in *SessionActionR
 	return out, nil
 }
 
+func (c *timerServiceClient) ResetSession(ctx context.Context, in *SessionActionRequest, opts ...grpc.CallOption) (*SessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SessionResponse)
+	err := c.cc.Invoke(ctx, TimerService_ResetSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *timerServiceClient) GetActiveSession(ctx context.Context, in *GetActiveSessionRequest, opts ...grpc.CallOption) (*SessionResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SessionResponse)
@@ -103,6 +115,7 @@ type TimerServiceServer interface {
 	PauseSession(context.Context, *SessionActionRequest) (*SessionResponse, error)
 	ResumeSession(context.Context, *SessionActionRequest) (*SessionResponse, error)
 	StopSession(context.Context, *SessionActionRequest) (*SessionResponse, error)
+	ResetSession(context.Context, *SessionActionRequest) (*SessionResponse, error)
 	GetActiveSession(context.Context, *GetActiveSessionRequest) (*SessionResponse, error)
 	mustEmbedUnimplementedTimerServiceServer()
 }
@@ -125,6 +138,9 @@ func (UnimplementedTimerServiceServer) ResumeSession(context.Context, *SessionAc
 }
 func (UnimplementedTimerServiceServer) StopSession(context.Context, *SessionActionRequest) (*SessionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StopSession not implemented")
+}
+func (UnimplementedTimerServiceServer) ResetSession(context.Context, *SessionActionRequest) (*SessionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResetSession not implemented")
 }
 func (UnimplementedTimerServiceServer) GetActiveSession(context.Context, *GetActiveSessionRequest) (*SessionResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetActiveSession not implemented")
@@ -222,6 +238,24 @@ func _TimerService_StopSession_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TimerService_ResetSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SessionActionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TimerServiceServer).ResetSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TimerService_ResetSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TimerServiceServer).ResetSession(ctx, req.(*SessionActionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _TimerService_GetActiveSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetActiveSessionRequest)
 	if err := dec(in); err != nil {
@@ -262,6 +296,10 @@ var TimerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StopSession",
 			Handler:    _TimerService_StopSession_Handler,
+		},
+		{
+			MethodName: "ResetSession",
+			Handler:    _TimerService_ResetSession_Handler,
 		},
 		{
 			MethodName: "GetActiveSession",
@@ -530,6 +568,7 @@ const (
 	StatsService_GetDailyStats_FullMethodName   = "/focus_todo.v1.StatsService/GetDailyStats"
 	StatsService_GetWeeklyStats_FullMethodName  = "/focus_todo.v1.StatsService/GetWeeklyStats"
 	StatsService_GetMonthlyStats_FullMethodName = "/focus_todo.v1.StatsService/GetMonthlyStats"
+	StatsService_LogFocusSession_FullMethodName = "/focus_todo.v1.StatsService/LogFocusSession"
 )
 
 // StatsServiceClient is the client API for StatsService service.
@@ -539,6 +578,7 @@ type StatsServiceClient interface {
 	GetDailyStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*StatsResponse, error)
 	GetWeeklyStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*StatsResponse, error)
 	GetMonthlyStats(ctx context.Context, in *GetStatsRequest, opts ...grpc.CallOption) (*StatsResponse, error)
+	LogFocusSession(ctx context.Context, in *LogFocusSessionRequest, opts ...grpc.CallOption) (*LogFocusSessionResponse, error)
 }
 
 type statsServiceClient struct {
@@ -579,6 +619,16 @@ func (c *statsServiceClient) GetMonthlyStats(ctx context.Context, in *GetStatsRe
 	return out, nil
 }
 
+func (c *statsServiceClient) LogFocusSession(ctx context.Context, in *LogFocusSessionRequest, opts ...grpc.CallOption) (*LogFocusSessionResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LogFocusSessionResponse)
+	err := c.cc.Invoke(ctx, StatsService_LogFocusSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // StatsServiceServer is the server API for StatsService service.
 // All implementations must embed UnimplementedStatsServiceServer
 // for forward compatibility.
@@ -586,6 +636,7 @@ type StatsServiceServer interface {
 	GetDailyStats(context.Context, *GetStatsRequest) (*StatsResponse, error)
 	GetWeeklyStats(context.Context, *GetStatsRequest) (*StatsResponse, error)
 	GetMonthlyStats(context.Context, *GetStatsRequest) (*StatsResponse, error)
+	LogFocusSession(context.Context, *LogFocusSessionRequest) (*LogFocusSessionResponse, error)
 	mustEmbedUnimplementedStatsServiceServer()
 }
 
@@ -604,6 +655,9 @@ func (UnimplementedStatsServiceServer) GetWeeklyStats(context.Context, *GetStats
 }
 func (UnimplementedStatsServiceServer) GetMonthlyStats(context.Context, *GetStatsRequest) (*StatsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMonthlyStats not implemented")
+}
+func (UnimplementedStatsServiceServer) LogFocusSession(context.Context, *LogFocusSessionRequest) (*LogFocusSessionResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LogFocusSession not implemented")
 }
 func (UnimplementedStatsServiceServer) mustEmbedUnimplementedStatsServiceServer() {}
 func (UnimplementedStatsServiceServer) testEmbeddedByValue()                      {}
@@ -680,6 +734,24 @@ func _StatsService_GetMonthlyStats_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StatsService_LogFocusSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogFocusSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StatsServiceServer).LogFocusSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StatsService_LogFocusSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StatsServiceServer).LogFocusSession(ctx, req.(*LogFocusSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // StatsService_ServiceDesc is the grpc.ServiceDesc for StatsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -698,6 +770,10 @@ var StatsService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetMonthlyStats",
 			Handler:    _StatsService_GetMonthlyStats_Handler,
+		},
+		{
+			MethodName: "LogFocusSession",
+			Handler:    _StatsService_LogFocusSession_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

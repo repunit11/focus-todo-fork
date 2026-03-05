@@ -9,6 +9,7 @@ service TimerService {
   rpc PauseSession(SessionActionRequest) returns (SessionResponse);
   rpc ResumeSession(SessionActionRequest) returns (SessionResponse);
   rpc StopSession(SessionActionRequest) returns (SessionResponse);
+  rpc ResetSession(SessionActionRequest) returns (SessionResponse);
   rpc GetActiveSession(GetActiveSessionRequest) returns (SessionResponse);
 }
 
@@ -24,6 +25,7 @@ service StatsService {
   rpc GetDailyStats(GetStatsRequest) returns (StatsResponse);
   rpc GetWeeklyStats(GetStatsRequest) returns (StatsResponse);
   rpc GetMonthlyStats(GetStatsRequest) returns (StatsResponse);
+  rpc LogFocusSession(LogFocusSessionRequest) returns (LogFocusSessionResponse);
 }
 
 service SettingsService {
@@ -94,6 +96,15 @@ message StatsResponse {
   int32 total_completed_pomodoros = 2;
   int32 total_completed_tasks = 3;
   repeated StatsPoint points = 4;
+}
+
+message LogFocusSessionRequest {
+  int64 focus_seconds = 1;
+  bool completed_pomodoro = 2;
+}
+
+message LogFocusSessionResponse {
+  bool ok = 1;
 }
 
 message PomodoroSettings {

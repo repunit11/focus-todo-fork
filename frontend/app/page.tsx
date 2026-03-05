@@ -1,14 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-
-type Session = {
-  id: string;
-  phase: 'focus' | 'short_break' | 'long_break' | string;
-  status: 'idle' | 'running' | 'paused' | string;
-  elapsedSeconds: number;
-  cycleIndex: number;
-};
+import { useEffect, useMemo, useState } from 'react';
 
 type Settings = {
   focusMinutes: number;
@@ -35,162 +27,100 @@ function formatMMSS(totalSeconds: number): string {
   return `${m}:${s}`;
 }
 
-function normalizeSession(raw: any): Session | null {
-  if (!raw || typeof raw !== 'object') return null;
-  if (!raw.id) return null;
-  return {
-    id: String(raw.id),
-    phase: String(raw.phase || 'focus'),
-    status: String(raw.status || 'idle'),
-    elapsedSeconds: Number(raw.elapsedSeconds || 0),
-    cycleIndex: Number(raw.cycleIndex || 0)
-  };
-}
-
 export default function TodayPage() {
-  const [session, setSession] = useState<Session | null>(null);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
-  const [error, setError] = useState<string>('');
-  const [nowMs, setNowMs] = useState<number>(Date.now());
-  const [syncedAtMs, setSyncedAtMs] = useState<number>(Date.now());
-  const syncingRef = useRef(false);
-
-  async function loadSettings() {
-    const resp = await fetch('/api/settings');
-    const json = await resp.json();
-    if (json.settings) {
-      setSettings(json.settings);
-    }
-  }
-
-  async function loadSession() {
-    if (syncingRef.current) return;
-    syncingRef.current = true;
-    try {
-      const resp = await fetch('/api/timer/active');
-      const json = await resp.json();
-      setSession(normalizeSession(json.session));
-      setSyncedAtMs(Date.now());
-    } finally {
-      syncingRef.current = false;
-    }
-  }
+  const [phase, setPhase] = useState<'focus' | 'short_break' | 'long_break'>('focus');
+  const [status, setStatus] = useState<'idle' | 'running' | 'paused'>('idle');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [cycleIndex, setCycleIndex] = useState(0);
 
   useEffect(() => {
-    loadSettings();
-    loadSession();
-
-    const tickId = setInterval(() => setNowMs(Date.now()), 250);
-    const syncId = setInterval(() => {
-      loadSession();
-    }, 10000);
-
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        loadSession();
-      }
-    };
-    document.addEventListener('visibilitychange', onVisible);
-
-    return () => {
-      clearInterval(tickId);
-      clearInterval(syncId);
-      document.removeEventListener('visibilitychange', onVisible);
-    };
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.settings) setSettings(j.settings);
+      })
+      .catch(() => {
+        // keep defaults on network errors
+      });
   }, []);
 
-  async function run(path: string) {
-    const resp = await fetch(path, { method: 'POST' });
-    const json = await resp.json();
-    if (!resp.ok) {
-      setError(json.error ?? 'Timer action failed');
-      await loadSession();
-      return;
-    }
-    setSession(normalizeSession(json.session));
-    setSyncedAtMs(Date.now());
-    setError('');
-  }
-
-  async function action(kind: 'start' | 'pause' | 'resume' | 'stop' | 'reset') {
-    const status = session?.status ?? 'idle';
-    const hasSession = !!session?.id;
-
-    if (kind === 'start') {
-      if (!hasSession) return run('/api/timer/start');
-      if (status === 'paused') return run('/api/timer/resume');
-      setError('既に実行中です');
-      return;
-    }
-
-    if (kind === 'pause') {
-      if (status !== 'running') {
-        setError('実行中のセッションがありません');
-        return;
-      }
-      return run('/api/timer/pause');
-    }
-
-    if (kind === 'resume') {
-      if (status !== 'paused') {
-        setError('一時停止中のセッションがありません');
-        return;
-      }
-      return run('/api/timer/resume');
-    }
-
-    if (kind === 'stop') {
-      if (!hasSession) {
-        setError('停止対象のセッションがありません');
-        return;
-      }
-      return run('/api/timer/stop');
-    }
-
-    await run('/api/timer/reset');
-    await loadSession();
-  }
-
-  const displayedElapsedSeconds = useMemo(() => {
-    if (!session) return 0;
-    if (session.status !== 'running') return session.elapsedSeconds;
-    const liveDelta = Math.floor((nowMs - syncedAtMs) / 1000);
-    return session.elapsedSeconds + Math.max(0, liveDelta);
-  }, [session, nowMs, syncedAtMs]);
+  useEffect(() => {
+    if (status !== 'running') return;
+    const id = setInterval(() => {
+      setElapsedSeconds((s) => s + 1);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [status]);
 
   const phaseDurationSeconds = useMemo(() => {
-    if (!session) return settings.focusMinutes * 60;
-    if (session.phase === 'short_break') return settings.shortBreakMinutes * 60;
-    if (session.phase === 'long_break') return settings.longBreakMinutes * 60;
+    if (phase === 'short_break') return settings.shortBreakMinutes * 60;
+    if (phase === 'long_break') return settings.longBreakMinutes * 60;
     return settings.focusMinutes * 60;
-  }, [session, settings]);
+  }, [phase, settings]);
 
-  const remainingSeconds = phaseDurationSeconds - displayedElapsedSeconds;
-  const showTimer = !!session && session.status !== 'idle';
+  useEffect(() => {
+    if (status !== 'running') return;
+    if (elapsedSeconds < phaseDurationSeconds) return;
+
+    if (phase === 'focus') {
+      fetch('/api/stats/log', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ focusSeconds: phaseDurationSeconds, completedPomodoro: true })
+      }).catch(() => {
+        // keep timer UX responsive even if logging fails
+      });
+    }
+
+    if (phase === 'focus') {
+      const nextCycle = cycleIndex + 1;
+      setCycleIndex(nextCycle);
+      const isLong = nextCycle % settings.longBreakInterval === 0;
+      setPhase(isLong ? 'long_break' : 'short_break');
+    } else {
+      setPhase('focus');
+    }
+
+    setElapsedSeconds(0);
+    setStatus('running');
+  }, [elapsedSeconds, phaseDurationSeconds, phase, cycleIndex, settings.longBreakInterval, status]);
+
+  function onStart() {
+    setStatus('running');
+  }
+
+  function onPause() {
+    if (status !== 'running') return;
+    setStatus('paused');
+  }
+
+  function onDelete() {
+    setStatus('idle');
+    setPhase('focus');
+    setElapsedSeconds(0);
+    setCycleIndex(0);
+  }
+
+  const remainingSeconds = phaseDurationSeconds - elapsedSeconds;
+  const showTimer = status !== 'idle';
 
   return (
     <div>
       <div className="card">
         <h2>Today</h2>
-        <p>Phase: {session?.phase ?? 'focus'}</p>
-        <p>Status: {session?.status ?? 'idle'}</p>
-        <p>Cycle: {session?.cycleIndex ?? 0}</p>
-        {error && <p style={{ color: '#c0392b' }}>{error}</p>}
+        <p>Phase: {phase}</p>
+        <p>Status: {status}</p>
+        <p>Cycle: {cycleIndex}</p>
         <div className="row">
-          <button className="button" onClick={() => action('start')}>
+          <button className="button" onClick={onStart}>
             Start
           </button>
-          <button className="button secondary" onClick={() => action('pause')}>
+          <button className="button secondary" onClick={onPause}>
             Pause
           </button>
-          <button className="button secondary" onClick={() => action('resume')}>
-            Resume
-          </button>
-          <button className="button secondary" onClick={() => action('stop')}>
-            Stop
-          </button>
-          <button className="button secondary" onClick={() => action('reset')}>
-            Reset
+          <button className="button secondary" onClick={onDelete}>
+            Delete
           </button>
         </div>
       </div>
@@ -200,7 +130,7 @@ export default function TodayPage() {
           <div className="card" style={{ textAlign: 'center' }}>
             <p style={{ marginBottom: 8 }}>Timer</p>
             <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: 2 }}>{formatMMSS(remainingSeconds)}</div>
-            <p style={{ opacity: 0.8 }}>Elapsed: {formatMMSS(displayedElapsedSeconds)}</p>
+            <p style={{ opacity: 0.8 }}>Elapsed: {formatMMSS(elapsedSeconds)}</p>
           </div>
 
           <div
@@ -220,7 +150,7 @@ export default function TodayPage() {
               boxShadow: '0 8px 24px rgba(0,0,0,0.2)'
             }}
           >
-            <span>{session?.phase ?? 'focus'}</span>
+            <span>{phase}</span>
             <strong>{formatMMSS(remainingSeconds)}</strong>
           </div>
         </>
