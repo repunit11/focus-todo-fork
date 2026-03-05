@@ -248,7 +248,7 @@ export default function TodayPage() {
           value={newTaskTitle}
           onChange={(e) => setNewTaskTitle(e.target.value)}
           placeholder="タスク名を入力して Enter"
-          style={{ border: 'none', outline: 'none', background: 'transparent', width: '80%', color: '#7f7f93' }}
+          style={{ border: 'none', outline: 'none', background: 'transparent', width: '80%', color: '#7f7f93', fontSize: '12px' }}
         />
       </form>
 

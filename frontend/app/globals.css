@@ -26,6 +26,8 @@ body {
   background: #f3f3f8;
   color: var(--text);
   font-family: var(--font-ui), 'Hiragino Kaku Gothic ProN', sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
@@ -41,26 +43,27 @@ a { color: inherit; text-decoration: none; }
 .sidebar {
   background: #fff;
   border-right: 1px solid var(--line-soft);
-  padding: 24px 16px;
+  padding: 14px 10px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
   box-shadow: none;
 }
 
 .sidebar-user {
-  font-size: 19px;
-  color: #626981;
-  font-weight: 600;
-  padding: 8px 10px;
+  font-size: 13px;
+  color: #6d7386;
+  font-weight: 500;
+  padding: 6px 8px;
 }
 
 .sidebar-search {
   border: 1px solid var(--line-soft);
-  border-radius: var(--radius-md);
+  border-radius: 8px;
   color: var(--muted);
   background: #f7f8fd;
-  padding: 11px 13px;
+  padding: 8px 10px;
+  font-size: 12px;
 }
 
 .sidebar-nav {
@@ -70,10 +73,11 @@ a { color: inherit; text-decoration: none; }
 }
 
 .sidebar-nav a {
-  border-radius: 11px;
-  padding: 11px 13px;
+  border-radius: 8px;
+  padding: 8px 10px;
   color: #6d7389;
   font-weight: 500;
+  font-size: 12px;
   border: 1px solid transparent;
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
 }
@@ -91,13 +95,13 @@ a { color: inherit; text-decoration: none; }
 }
 
 .topbar {
-  height: 74px;
+  height: 56px;
   border-bottom: 1px solid var(--line-soft);
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 18px;
-  padding: 0 26px;
+  gap: 14px;
+  padding: 0 14px;
   background: #fff;
   backdrop-filter: none;
 }
@@ -105,6 +109,8 @@ a { color: inherit; text-decoration: none; }
 .topbar svg {
   color: #6f7590;
   transition: transform 140ms ease, color 140ms ease;
+  width: 16px;
+  height: 16px;
 }
 
 .topbar svg:hover {
@@ -113,14 +119,14 @@ a { color: inherit; text-decoration: none; }
 }
 
 .page {
-  padding: 24px 20px 96px;
+  padding: 14px 12px 82px;
 }
 
 .today-title {
-  margin: 0 0 14px;
+  margin: 0 0 10px;
   color: #666b7c;
   font-family: var(--font-ui), 'Hiragino Kaku Gothic ProN', sans-serif;
-  font-size: 42px;
+  font-size: 38px;
   letter-spacing: 0;
   font-weight: 500;
 }
@@ -128,22 +134,22 @@ a { color: inherit; text-decoration: none; }
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .stat-card {
   background: #fff;
   border: 1px solid #eceef6;
-  border-radius: var(--radius-lg);
+  border-radius: 10px;
   text-align: center;
-  padding: 18px 12px;
+  padding: 10px 8px;
   box-shadow: none;
 }
 
 .stat-value {
   color: var(--accent);
-  font-size: 40px;
+  font-size: 34px;
   line-height: 1;
   font-weight: 700;
   font-family: var(--font-display), serif;
@@ -152,31 +158,33 @@ a { color: inherit; text-decoration: none; }
 
 .stat-label {
   color: #9ea5ba;
-  font-size: 13px;
-  margin-top: 7px;
+  font-size: 11px;
+  margin-top: 4px;
 }
 
 .quick-add {
   border: 1px solid #eceef6;
   background: #fff;
-  border-radius: var(--radius-lg);
-  padding: 15px 18px;
-  margin-bottom: 16px;
+  border-radius: 10px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
   color: #a9aec2;
   box-shadow: none;
+  font-size: 12px;
 }
 
 .task-board {
   border: 1px solid #eceef6;
   background: #fff;
-  border-radius: var(--radius-lg);
-  padding: 16px;
+  border-radius: 10px;
+  padding: 10px;
   box-shadow: none;
 }
 
 .task-board > strong {
   color: #676f88;
-  font-weight: 700;
+  font-weight: 600;
+  font-size: 12px;
   letter-spacing: 0.01em;
 }
 
@@ -185,9 +193,9 @@ a { color: inherit; text-decoration: none; }
   justify-content: space-between;
   align-items: center;
   border: 1px solid #edf0f7;
-  border-radius: var(--radius-md);
-  padding: 13px 14px;
-  margin-top: 12px;
+  border-radius: 8px;
+  padding: 9px 10px;
+  margin-top: 8px;
   background: #fcfcff;
   transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
@@ -201,18 +209,19 @@ a { color: inherit; text-decoration: none; }
 .task-row-main {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  font-size: 12px;
 }
 
 .task-start {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 1px solid #dfe4f0;
   background: #fff;
   color: #636c86;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 10px;
   display: grid;
   place-items: center;
   transition: all 140ms ease;
@@ -226,7 +235,7 @@ a { color: inherit; text-decoration: none; }
 
 .task-meta {
   color: var(--accent);
-  font-size: 13px;
+  font-size: 11px;
 }
 
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
