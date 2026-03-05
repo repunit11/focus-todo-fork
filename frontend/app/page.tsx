@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { CircleDot, Play, Plus, X } from 'lucide-react';
+import { ChevronDown, CircleDot, Play, Plus } from 'lucide-react';
 
 type Settings = {
   focusMinutes: number;
@@ -251,7 +251,7 @@ export default function TodayPage() {
                   onClick={() => setIsTimerModalOpen(false)}
                   title="縮小"
                 >
-                  <X size={18} />
+                  <ChevronDown size={20} />
                 </button>
               </div>
 
@@ -281,14 +281,6 @@ export default function TodayPage() {
                     </button>
                   </>
                 )}
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => setIsTimerModalOpen(false)}
-                  title="縮小"
-                >
-                  縮小
-                </button>
               </div>
 
               <div className="timer-bottom-modes">
