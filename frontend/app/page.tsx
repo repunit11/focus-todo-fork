@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type Session = {
   id: string;
@@ -51,21 +51,52 @@ export default function TodayPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [error, setError] = useState<string>('');
+  const [nowMs, setNowMs] = useState<number>(Date.now());
+  const [syncedAtMs, setSyncedAtMs] = useState<number>(Date.now());
+  const syncingRef = useRef(false);
 
-  async function load() {
-    const [activeResp, settingsResp] = await Promise.all([fetch('/api/timer/active'), fetch('/api/settings')]);
-    const activeJson = await activeResp.json();
-    const settingsJson = await settingsResp.json();
-    setSession(normalizeSession(activeJson.session));
-    if (settingsJson.settings) {
-      setSettings(settingsJson.settings);
+  async function loadSettings() {
+    const resp = await fetch('/api/settings');
+    const json = await resp.json();
+    if (json.settings) {
+      setSettings(json.settings);
+    }
+  }
+
+  async function loadSession() {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    try {
+      const resp = await fetch('/api/timer/active');
+      const json = await resp.json();
+      setSession(normalizeSession(json.session));
+      setSyncedAtMs(Date.now());
+    } finally {
+      syncingRef.current = false;
     }
   }
 
   useEffect(() => {
-    load();
-    const id = setInterval(load, 1000);
-    return () => clearInterval(id);
+    loadSettings();
+    loadSession();
+
+    const tickId = setInterval(() => setNowMs(Date.now()), 250);
+    const syncId = setInterval(() => {
+      loadSession();
+    }, 10000);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        loadSession();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearInterval(tickId);
+      clearInterval(syncId);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, []);
 
   async function run(path: string) {
@@ -73,10 +104,11 @@ export default function TodayPage() {
     const json = await resp.json();
     if (!resp.ok) {
       setError(json.error ?? 'Timer action failed');
-      await load();
+      await loadSession();
       return;
     }
     setSession(normalizeSession(json.session));
+    setSyncedAtMs(Date.now());
     setError('');
   }
 
@@ -85,14 +117,8 @@ export default function TodayPage() {
     const hasSession = !!session?.id;
 
     if (kind === 'start') {
-      if (!hasSession) {
-        await run('/api/timer/start');
-        return;
-      }
-      if (status === 'paused') {
-        await run('/api/timer/resume');
-        return;
-      }
+      if (!hasSession) return run('/api/timer/start');
+      if (status === 'paused') return run('/api/timer/resume');
       setError('既に実行中です');
       return;
     }
@@ -102,8 +128,7 @@ export default function TodayPage() {
         setError('実行中のセッションがありません');
         return;
       }
-      await run('/api/timer/pause');
-      return;
+      return run('/api/timer/pause');
     }
 
     if (kind === 'resume') {
@@ -111,8 +136,7 @@ export default function TodayPage() {
         setError('一時停止中のセッションがありません');
         return;
       }
-      await run('/api/timer/resume');
-      return;
+      return run('/api/timer/resume');
     }
 
     if (kind === 'stop') {
@@ -120,13 +144,19 @@ export default function TodayPage() {
         setError('停止対象のセッションがありません');
         return;
       }
-      await run('/api/timer/stop');
-      return;
+      return run('/api/timer/stop');
     }
 
     await run('/api/timer/reset');
-    await load();
+    await loadSession();
   }
+
+  const displayedElapsedSeconds = useMemo(() => {
+    if (!session) return 0;
+    if (session.status !== 'running') return session.elapsedSeconds;
+    const liveDelta = Math.floor((nowMs - syncedAtMs) / 1000);
+    return session.elapsedSeconds + Math.max(0, liveDelta);
+  }, [session, nowMs, syncedAtMs]);
 
   const phaseDurationSeconds = useMemo(() => {
     if (!session) return settings.focusMinutes * 60;
@@ -135,7 +165,7 @@ export default function TodayPage() {
     return settings.focusMinutes * 60;
   }, [session, settings]);
 
-  const remainingSeconds = phaseDurationSeconds - (session?.elapsedSeconds ?? 0);
+  const remainingSeconds = phaseDurationSeconds - displayedElapsedSeconds;
   const showTimer = !!session && session.status !== 'idle';
 
   return (
@@ -170,7 +200,7 @@ export default function TodayPage() {
           <div className="card" style={{ textAlign: 'center' }}>
             <p style={{ marginBottom: 8 }}>Timer</p>
             <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: 2 }}>{formatMMSS(remainingSeconds)}</div>
-            <p style={{ opacity: 0.8 }}>Elapsed: {formatMMSS(session?.elapsedSeconds ?? 0)}</p>
+            <p style={{ opacity: 0.8 }}>Elapsed: {formatMMSS(displayedElapsedSeconds)}</p>
           </div>
 
           <div
